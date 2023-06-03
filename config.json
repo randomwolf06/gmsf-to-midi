@@ -1,5 +1,5 @@
 {
-    "midi_track_map":{
+    "midi_track_map": {
         "0":{"patch":0,"name":"Piano"},
         "1":{"patch":38,"name":"Bass"},
         "2":{"patch":65,"name":"Sax"},
@@ -11,7 +11,7 @@
         "8":{"patch":56,"name":"Mexican Trumpet"},
         "9":{"patch":0,"name":"Drums(will always be this channel)"}
     },
-    "gmsf_sheet_map":{
+    "gmsf_sheet_map": {
         "1":{"Note":[0,"Natural"]},
         "2":{"Note":[0,"Sharp"]},
         "3":{"Note":[0,"Flat"]},
