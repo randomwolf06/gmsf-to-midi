@@ -1,15 +1,16 @@
 # gmsf-to-midi
 A tool to convert .GMSF (Growtopia Music Simulator Final) files to .midi
 
-## Compilation
-Build source code : 
+# Compilation
+Install Rust and run : 
 ```cargo build --release``` 
 
-## Usage
+# Usage
 ```bash
 gmsf-to-midi [FILES...]
 ```
-### config.json format
+
+## config.json format
 ```javascript
 {
   "midi-track-map": {
