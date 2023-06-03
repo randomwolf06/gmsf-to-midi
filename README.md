@@ -9,8 +9,10 @@ Install Rust and run :
 ```bash
 gmsf-to-midi [FILES...]
 ```
+You can also drag and drop your .GMSF files to the .exe in Windows.
 
-## config.json format
+
+### config.json format
 ```javascript
 {
   "midi-track-map": {
