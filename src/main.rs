@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 use std::{fs::File, io::Write, io::BufWriter};
 use std::io::{self, BufReader, Read};
 use serde::{Serialize, Deserialize};
-use std::fs;
+use std::{fs, env};
 
 const GMSF_KEY_LOOKUP : [u8; 14] = [
     71,
@@ -163,6 +163,13 @@ fn channel_and_key_from_gmsf_sheet(sheet_type : GMSFSheetType, y : usize) -> Opt
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+struct RepeatEnd {
+    start_pos : usize,
+    use_counter : i32,
+    max_use : i32,
+}
+
 fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
 
         //------- Import time!
@@ -192,10 +199,10 @@ fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
     let read_height = i16::from_le_bytes(buf16) as usize;
     
     let mut song_data : HashMap<u8, Vec<HashSet<u8>>> = HashMap::new();
-    let mut repeat_begin_count : Vec<i32> = vec![0; read_width];
-    let mut repeat_end_count : Vec<i32> = vec![0; read_width];
+    let mut repeat_ends : Vec<Vec<RepeatEnd>> = vec![Vec::new(); read_width];
 
     for y in 0..read_height {
+        let mut repeat_begin_pos : Vec<usize> = vec![];
         for x in 0..read_width {
             infile.read(&mut buf8)?;
             let read_id = u8::from_le_bytes(buf8);
@@ -219,25 +226,55 @@ fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
             } else if let Some(sheet) = config.gmsf_sheet_map.get(&read_id) {
         
                 if let Some((channel, key)) = channel_and_key_from_gmsf_sheet(*sheet, y) {
-                        song_data.entry(channel).or_insert(vec![HashSet::new(); read_width]);
+                    song_data.entry(channel).or_insert(vec![HashSet::new(); read_width]);
                     song_data.entry(channel).and_modify(|v| { v[x].insert(key); });
                     
                 }
                 if *sheet == GMSFSheetType::RepeatBegin {
-                    repeat_begin_count[x] += 1;
+                    repeat_begin_pos.push(x);
                 }
                 if *sheet == GMSFSheetType::RepeatEnd {
-                    repeat_end_count[x] += 1;
+                    let last_begin : usize;
+                    if let Some(n) = repeat_begin_pos.last() {
+                        last_begin= *n;
+                    } else {
+                        last_begin = 0;
+                    }
+                    repeat_ends[x].push(RepeatEnd { start_pos: last_begin, use_counter: 0, max_use: 1 })
                 }
             }
         }
     }
-    
+
+    for v in repeat_ends.iter_mut() {
+        v.sort();
+        let mut combined : Vec<RepeatEnd> = vec![];
+        let mut prev_repeat_end : Option<RepeatEnd> = None;
+        for repeat_end in v.iter() {
+            if let Some(prev) = prev_repeat_end  {
+                if repeat_end.start_pos == prev.start_pos {
+                    if let Some(last) = combined.last_mut() {
+                        last.max_use += 1
+                    }
+                } else {
+                    combined.push(RepeatEnd { start_pos: repeat_end.start_pos, use_counter: 0, max_use: 1 });
+                }
+            } else {
+                combined.push(RepeatEnd { start_pos: repeat_end.start_pos, use_counter: 0, max_use: 1 });
+            }
+            prev_repeat_end = Some(*repeat_end);
+        }
+        *v = combined;
+    }
+
     //---- Its converting time :Happy: -------------//
 
     let mut total_tracks : u16 = 1;
 
     let mut track_buffers : Vec<Vec<u8>> = vec![];
+    
+    let mut song_data = Vec::from_iter(song_data.iter());
+    song_data.sort_by(|a, b| a.0.cmp(&b.0));
 
     for (instrument, track) in &song_data {
         let track_info;
@@ -263,10 +300,8 @@ fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
 
         track_buffer.append(&mut MidiEventType::ProgramChange(track_info.patch).as_vec(0, channel_id));
 
-        let mut used_repeat_begin : Vec<(usize, i32)> = vec![];
-        let mut used_repeat_end_counter : Vec<i32> = vec![];
-
         let mut x : usize = 0;
+
         while x < read_width {
             for last_key in last_keys.iter() {
                 track_buffer.append(&mut MidiEventType::NoteOff(*last_key).as_vec(current_delta - last_delta, channel_id));
@@ -281,46 +316,24 @@ fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
                 last_keys.push(*key);
             }
             current_delta += DELTATIME_PER_BLOCK;
-            
-            if repeat_begin_count[x] > 0 {
-                if let Some(n) = used_repeat_begin.last() {
-                    if n.1 <= 0 {
-                        used_repeat_begin.pop();
-                    }
+            let mut repeating : bool = false;
+            for repeat_end in repeat_ends[x].iter_mut() {
+                if repeat_end.use_counter >= repeat_end.max_use {
+                    repeat_end.use_counter = 0;
                 } else {
-                    used_repeat_begin.push((x, repeat_begin_count[x]));
+                    repeat_end.use_counter += 1;
+                    x = repeat_end.start_pos;
+                    repeating = true;
+                    break;
                 }
             }
-            if repeat_end_count[x] > 0 {
-                if let Some(counter) = used_repeat_end_counter.last_mut() {
-                    if *counter <= 0 {
-                        used_repeat_end_counter.pop();
-                    } else if let Some(repeat_begin) = used_repeat_begin.last_mut() {
-                        repeat_begin.1 -= 1;
-                        *counter -= 1;
-                        x = repeat_begin.0; continue;
-                    } else {
-                        *counter -= 1;
-                        x = 0; continue;
-                    }
-                } else {
-                    used_repeat_end_counter.push(repeat_end_count[x] - 1);
-                    if let Some(repeat_begin) = used_repeat_begin.last_mut() {
-                        repeat_begin.1 -= 1;
-                        x = repeat_begin.0; continue;
-                    } else {
-                        x = 0; continue;
-                    }
-                }
-            }
-            x += 1;
+            if !repeating { x += 1; }
         }
         track_buffer.append(&mut MidiMetaEventType::EndOfTrack.as_vec(0));
         track_buffers.push(track_buffer);
     }
 
     // export :)
-
     let mut filename = Path::new(path).file_name().unwrap().to_owned();
     filename.push(".mid");
     
@@ -360,7 +373,12 @@ fn main() {
     let config : Config = serde_json::from_str(&config_json_reader).unwrap_or_else(|e| 
         panic!("Cant parse config.json! {}", e)
     );
-    convert_gmsf_to_midi("pizza.GMSF", &config).unwrap_or_else(|err| {
-        panic!("Oops! Something went wrong while converting... {}", err);
-    });
+    let mut args : VecDeque<String> = env::args().collect();
+    args.pop_front();
+    
+    for filename in args {
+        convert_gmsf_to_midi(&filename, &config).unwrap_or_else(|err| {
+            println!("Oops! Something went wrong while converting {}, skipping... {}", filename , err);
+        });
+    }
 }
