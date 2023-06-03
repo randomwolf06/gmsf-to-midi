@@ -15,34 +15,45 @@
         "1":{"Note":[0,"Natural"]},
         "2":{"Note":[0,"Sharp"]},
         "3":{"Note":[0,"Flat"]},
+
         "4":{"LowNote":[1,"Natural"]},
         "5":{"LowNote":[1,"Sharp"]},
         "6":{"LowNote":[1,"Flat"]},
+
         "7":"Drums",
         "8":"Other",
+
         "9":{"Note":[2,"Natural"]},
         "10":{"Note":[2,"Sharp"]},
         "11":{"Note":[2,"Flat"]},
+
         "12":"RepeatBegin",
         "13":"RepeatEnd",
         "14":"Other",
         "15":"Other",
-        "16":{"Note":[3,"Natural"]},
-        "17":{"Note":[3,"Sharp"]},
-        "18":{"Note":[3,"Flat"]},
+
+        "16":{"HighNote":[3,"Natural"]},
+        "17":{"HighNote":[3,"Sharp"]},
+        "18":{"HighNote":[3,"Flat"]},
+
         "19":"Other",
+
         "20":{"Note":[4,"Natural"]},
         "21":{"Note":[4,"Sharp"]},
         "22":{"Note":[4,"Flat"]},
+
         "23":{"Note":[5,"Natural"]},
         "24":{"Note":[5,"Sharp"]},
         "25":{"Note":[5,"Flat"]},
+
         "26":{"Note":[6,"Natural"]},
         "27":{"Note":[6,"Sharp"]},
         "28":{"Note":[6,"Flat"]},
+
         "29":{"Note":[7,"Natural"]},
         "30":{"Note":[7,"Sharp"]},
         "31":{"Note":[7,"Flat"]},
+
         "32":{"Note":[8,"Natural"]},
         "33":{"Note":[8,"Sharp"]},
         "34":{"Note":[8,"Flat"]}

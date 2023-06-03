@@ -117,6 +117,7 @@ impl MidiMetaEventType {
 enum GMSFSheetType {
     Note(u8, Accidental),
     LowNote(u8, Accidental),
+    HighNote(u8, Accidental),
     Drums,
     RepeatBegin,
     RepeatEnd,
@@ -153,6 +154,13 @@ fn channel_and_key_from_gmsf_sheet(sheet_type : GMSFSheetType, y : usize) -> Opt
         }
         GMSFSheetType::LowNote(channel_id, accidental) => {
             let mut key : u8 = GMSF_KEY_LOOKUP[y] - 24;
+            if let Accidental::Flat = accidental  { key -= 1; }
+            if let Accidental::Sharp = accidental { key += 1; }
+            
+            Some((channel_id, key))
+        }
+        GMSFSheetType::HighNote(channel_id, accidental) => {
+            let mut key : u8 = GMSF_KEY_LOOKUP[y] + 24;
             if let Accidental::Flat = accidental  { key -= 1; }
             if let Accidental::Sharp = accidental { key += 1; }
             
