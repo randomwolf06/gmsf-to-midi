@@ -377,16 +377,19 @@ fn main() {
     let config_json_reader = fs::read_to_string("config.json").unwrap_or_else(|e| 
         panic!("Cant open config.json! {}", e)
     );
-    println!("{}", config_json_reader);
     let config : Config = serde_json::from_str(&config_json_reader).unwrap_or_else(|e| 
         panic!("Cant parse config.json! {}", e)
     );
     let mut args : VecDeque<String> = env::args().collect();
     args.pop_front();
-    
+
+    if args.is_empty() {
+        println!("USAGE: gmsf-to-midi [FILES...]");
+    }
+
     for filename in args {
         convert_gmsf_to_midi(&filename, &config).unwrap_or_else(|err| {
-            println!("Oops! Something went wrong while converting {}, skipping... {}", filename , err);
+            println!("Oops! Something went wrong while converting {}, skipping... ({})", filename , err);
         });
     }
 }
