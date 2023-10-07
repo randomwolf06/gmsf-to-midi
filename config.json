@@ -1,5 +1,5 @@
 {
-    "midi_track_map": {
+    "midi_channel_map": {
         "0":{"patch":0,"name":"Piano"},
         "1":{"patch":38,"name":"Bass"},
         "2":{"patch":65,"name":"Sax"},

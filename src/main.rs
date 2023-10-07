@@ -43,6 +43,49 @@ const GMSF_DRUMS_LOOKUP : [u8; 14] = [
 const DELTATIME : u32 = 96;
 const DELTATIME_PER_BLOCK : u32 = DELTATIME/4;
 
+enum MidiEventType {
+    NoteOff(u8),
+    NoteOn(u8),
+    ProgramChange(u8),
+}
+enum MidiMetaEventType {
+    TrackName(String),
+    ChannelPrefix(u8),
+    SetTempo(u32),
+    EndOfTrack,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Serialize, Deserialize)]
+enum GMSFSheetType {
+    Note(u8, Accidental),
+    LowNote(u8, Accidental),
+    HighNote(u8, Accidental),
+    Drums,
+    RepeatBegin,
+    RepeatEnd,
+    Other,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Serialize, Deserialize)]
+enum Accidental {
+    Natural,
+    Flat,
+    Sharp,
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct TrackInfo {
+    patch : u8,
+    name : String,
+
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct Config {
+    midi_channel_map : HashMap<u8, TrackInfo>,
+    gmsf_sheet_map : HashMap<u8, GMSFSheetType>,
+}
+
 fn var_len_from(mut value : u32) -> Vec<u8> {
     let mut bytes : Vec<u8> = vec![];
     let mut buf : u32;
@@ -65,17 +108,6 @@ fn var_len_from(mut value : u32) -> Vec<u8> {
     return bytes;
 }
 
-enum MidiEventType {
-    NoteOff(u8),
-    NoteOn(u8),
-    ProgramChange(u8),
-}
-enum MidiMetaEventType {
-    TrackName(String),
-    ChannelPrefix(u8),
-    SetTempo(u32),
-    EndOfTrack,
-}
 
 impl MidiEventType {
     fn as_vec(&self, delta : u32, channel_id : u8) -> Vec<u8> {
@@ -111,37 +143,6 @@ impl MidiMetaEventType {
     }
 }
 
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-#[derive(Serialize, Deserialize)]
-enum GMSFSheetType {
-    Note(u8, Accidental),
-    LowNote(u8, Accidental),
-    HighNote(u8, Accidental),
-    Drums,
-    RepeatBegin,
-    RepeatEnd,
-    Other,
-}
-#[derive(Clone, Copy, PartialEq, Debug)]
-#[derive(Serialize, Deserialize)]
-enum Accidental {
-    Natural,
-    Flat,
-    Sharp,
-}
-#[derive(Serialize, Deserialize, Debug)]
-struct TrackInfo {
-    patch : u8,
-    name : String,
-
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Config {
-    midi_track_map : HashMap<u8, TrackInfo>,
-    gmsf_sheet_map : HashMap<u8, GMSFSheetType>,
-}
 
 fn channel_and_key_from_gmsf_sheet(sheet_type : GMSFSheetType, y : usize) -> Option<(u8, u8)> {
     match sheet_type {
@@ -287,7 +288,7 @@ fn convert_gmsf_to_midi(path : &str, config : &Config) -> io::Result<()> {
     for (instrument, track) in &song_data {
         let track_info;
         let channel_id;
-        if let Some(n) = config.midi_track_map.get_key_value(&instrument) {
+        if let Some(n) = config.midi_channel_map.get_key_value(&instrument) {
             track_info = n.1;
             channel_id = *n.0;
             if channel_id > 15 {
